@@ -46,7 +46,7 @@ void DRIVER_Initialize(const int sx, const int sy, const int sz, const int bord,
                        float * restrict pp, float * restrict pc, float * restrict qp, float * restrict qc)
 {
 
-#include"../precomp.h"
+#include "../precomp.h"
 
 	   CUDA_Initialize(sx,   sy,   sz,   bord,
 		  dx,  dy,  dz,  dt,

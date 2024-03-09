@@ -22,6 +22,8 @@ ch1dzz = (float *) malloc(sx*sy*sz*sizeof(float));
 ch1dxy = (float *) malloc(sx*sy*sz*sizeof(float));
 ch1dyz = (float *) malloc(sx*sy*sz*sizeof(float));
 ch1dxz = (float *) malloc(sx*sy*sz*sizeof(float));
+
+#pragma oss taskloop grainsize(288 * 288) in(theta,phi) inout(ch1dxx,ch1dyy,ch1dzz,ch1dxy,ch1dyz,ch1dxz)
 for (int i=0; i<sx*sy*sz; i++) {
   float sinTheta=sin(theta[i]);
   float cosTheta=cos(theta[i]);
@@ -50,21 +52,26 @@ v2px = (float *) malloc(sx*sy*sz*sizeof(float));
 v2pz = (float *) malloc(sx*sy*sz*sizeof(float));
 v2sz = (float *) malloc(sx*sy*sz*sizeof(float));
 v2pn = (float *) malloc(sx*sy*sz*sizeof(float));
+
+#pragma oss taskloop grainsize(288 * 288) in(vsv,vpz) inout(v2sz,v2pz,v2px,v2pn)
 for (int i=0; i<sx*sy*sz; i++){
   v2sz[i]=vsv[i]*vsv[i];
   v2pz[i]=vpz[i]*vpz[i];
   v2px[i]=v2pz[i]*(1.0+2.0*epsilon[i]);
   v2pn[i]=v2pz[i]*(1.0+2.0*delta[i]);
 }
+
 #ifdef _DUMP
 {
+
   const int iPrint=ind(bord+1,bord+1,bord+1);
   printf("vsv=%e; vpz=%e, v2pz=%e\n",
          vsv[iPrint], vpz[iPrint], v2pz[iPrint]);
+
   printf("v2sz=%e; v2pz=%e, v2px=%e, v2pn=%e\n",
          v2sz[iPrint], v2pz[iPrint], v2px[iPrint], v2pn[iPrint]);
 }
-#endif
 
 #endif
 
+#endif

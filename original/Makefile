@@ -2,7 +2,8 @@
 #   module load gompi
 
 # Default
-backend=OpenMP
+
+backend=OMPSS2
 arch=$(backend)
 
 include config.mk
@@ -24,7 +25,7 @@ endif
 
 OBJ=main.o $(OBJ1)
 
-TARGET = ModelagemFletcher.exe
+TARGET = ModelagemFletcher.sh
 
 all: 	$(OBJ)
 	cd $(arch) && make

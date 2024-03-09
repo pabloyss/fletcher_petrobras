@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
   // dump problem input data
 
 #ifdef _DUMP
-  printf("Grid size is (%d,%d,%d) with spacing (%.2f,%.2f,%.2f); simulated area (%.2f,%.2f,%.2f) \n", 
+  printf("Grid size is (%d,%d,%d) with spacing (%.2f,%.2f,%.2f); simulated area (%.2f,%.2f,%.2f) \n",
 	 nx, ny, nz, dx, dy, dz, (nx-1)*dx, (ny-1)*dy, (nz-1)*dz);
   printf("Grid is extended by %d absortion points and %d border points at each extreme\n", absorb, bord);
   printf("Wave is propagated at internal+absortion points of size (%d,%d,%d)\n",
@@ -144,25 +144,37 @@ int main(int argc, char** argv) {
 #endif
 
   // allocate input anisotropy arrays
-  
-  float *vpz=NULL;      // p wave speed normal to the simetry plane
-  vpz = (float *) malloc(sx*sy*sz*sizeof(float));
+
+    float *vpz=NULL;      // p wave speed normal to the simetry plane
+
+//#pragma oss task out(vpz)
+    vpz = (float *) malloc(sx*sy*sz*sizeof(float));
 
   float *vsv=NULL;      // sv wave speed normal to the simetry plane
-  vsv = (float *) malloc(sx*sy*sz*sizeof(float));
+
+//#pragma oss task out(vsv)
+    vsv = (float *) malloc(sx*sy*sz*sizeof(float));
   
   float *epsilon=NULL;  // Thomsen isotropic parameter
-  epsilon = (float *) malloc(sx*sy*sz*sizeof(float));
+
+//#pragma oss task out(epsilon)
+    epsilon = (float *) malloc(sx*sy*sz*sizeof(float));
   
   float *delta=NULL;    // Thomsen isotropic parameter
-  delta = (float *) malloc(sx*sy*sz*sizeof(float));
+
+//#pragma oss task out(delta)
+    delta = (float *) malloc(sx*sy*sz*sizeof(float));
   
-  float *phi=NULL;     // isotropy simetry azimuth angle
-  phi = (float *) malloc(sx*sy*sz*sizeof(float));
+  float *phi=NULL;     // isotropy simetry azimuth
+
+//#pragma oss task out(phi)
+    phi = (float *) malloc(sx*sy*sz*sizeof(float));
   
   float *theta=NULL;  // isotropy simetry deep angle
-  theta = (float *) malloc(sx*sy*sz*sizeof(float));
+//#pragma oss task out(theta)
+    theta = (float *) malloc(sx*sy*sz*sizeof(float));
 
+//#pragma oss taskwait
   // input anisotropy arrays for selected problem formulation
 
   switch(prob) {
@@ -200,11 +212,12 @@ int main(int argc, char** argv) {
     break;
 
   case TTI:
-
+printf("%d %d %d", sx,sy,sz);
     if (SIGMA > MAX_SIGMA) {
       printf("Since sigma (%f) is greater that threshold (%f), sigma is considered infinity and vsv is set to zero\n", 
 		      SIGMA, MAX_SIGMA);
     }
+#pragma oss taskloop grainsize(284 * 284) inout(vpz,epsilon,delta,phi,theta)
     for (i=0; i<sx*sy*sz; i++) {
       vpz[i]=3000.0;
       epsilon[i]=0.24;
@@ -218,15 +231,23 @@ int main(int argc, char** argv) {
 	vsv[i]=vpz[i]*sqrtf(fabsf(epsilon[i]-delta[i])/SIGMA);
       }
     }
-  } // end switch
 
+  } // end switch
   // stability condition
-  
-  float maxvel;
+
+#pragma oss taskwait
+
+    float maxvel;
   maxvel=vpz[0]*sqrt(1.0+2*epsilon[0]);
-  for (i=1; i<sx*sy*sz; i++) {
+
+  // Aqui vou precisar de um reduce
+//#pragma oss taskloop grainsize(288 * 288) inout (vpz)
+    for (i=1; i<sx*sy*sz; i++) {
     maxvel=fmaxf(maxvel,vpz[i]*sqrt(1.0+2*epsilon[i]));
   }
+//#pragma oss taskwait
+
+
   float mindelta=dx;
   if (dy<mindelta)
     mindelta=dy;
@@ -253,8 +274,10 @@ int main(int argc, char** argv) {
   float *qp=NULL;
   qp = (float *) malloc(sx*sy*sz*sizeof(float)); 
   float *qc=NULL;
-  qc = (float *) malloc(sx*sy*sz*sizeof(float)); 
-  for (i=0; i<sx*sy*sz; i++) {
+  qc = (float *) malloc(sx*sy*sz*sizeof(float));
+
+//#pragma oss taskloop grainsize(288 * 288) inout (pp,pc,qp,qc)
+    for (i=0; i<sx*sy*sz; i++) {
     pp[i]=0.0f; pc[i]=0.0f; 
     qp[i]=0.0f; qc[i]=0.0f;
   }
@@ -281,8 +304,8 @@ int main(int argc, char** argv) {
   DumpSlicePtr(sPtr);
   //  DumpSliceSummary(sx,sy,sz,sPtr,dt,it,pc,0);
 #endif
-  
-  // Model do:
+
+    // Model do:
   // - Initialize
   // - time loop
   // - calls Propagate
@@ -290,7 +313,8 @@ int main(int argc, char** argv) {
   // - calls InsertSource
   // - do AbsorbingBoundary and DumpSliceFile, if needed
   // - Finalize
-  Model(st,     iSource, dtOutput, sPtr,
+
+    Model(st,     iSource, dtOutput, sPtr,
         sx,     sy,      sz,       bord,
         dx,     dy,      dz,       dt,   it, 
         pp,     pc,      qp,       qc,

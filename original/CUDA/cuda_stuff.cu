@@ -38,7 +38,8 @@ void CUDA_Initialize(const int sx, const int sy, const int sz, const int bord,
    extern float* dev_qp;
    extern float* dev_qc;
 
- 
+   printf("cuda?\n");
+
   int deviceCount;
   CUDA_CALL(cudaGetDeviceCount(&deviceCount));
   const int device=0;
